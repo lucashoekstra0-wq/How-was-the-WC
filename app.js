@@ -117,7 +117,7 @@ async function createSupabaseBackend() {
     async signOut() { await sb.auth.signOut(); },
     async loadAll() {
       const [profiles, posts, confirmations] = await Promise.all([
-        sb.from('profiles').select('id, display_name'),
+        sb.from('profiles').select('id, display_name, is_admin').then((r) => (r.error ? sb.from('profiles').select('id, display_name') : r)),
         sb.from('posts').select('id, user_id, category, description, location, photo_path, created_at')
           .order('created_at', { ascending: false }).limit(10000),
         sb.from('confirmations').select('post_id, user_id').limit(50000),
@@ -170,17 +170,17 @@ function seedDemo() {
   const thisWeek = (f) => new Date(ws + span * f).toISOString();
   const lastWeek = (f) => new Date(ws - 7 * DAY + 7 * DAY * f).toISOString();
   const rows = [
-    ['d1', 'remsporen', 'Klassieker. Iemand heeft de borstel niet gevonden.', 0.95, 'w', 'Begane grond'],
-    ['d3', 'plas', 'Plasje naast de pot, ik ben er bijna in uitgegleden 🫠', 0.8, 'w', '1e verdieping'],
-    ['d2', 'wasbak', 'Tandpasta + baardharen in de wasbak.', 0.6, 'w', '1e verdieping'],
-    ['d1', 'bril', 'Bril met verdachte druppels.', 0.4, 'w', 'Begane grond'],
-    ['d4', 'haar', 'Krulletje op de bril. Geen commentaar.', 0.25, 'w', '2e verdieping'],
-    ['d1', 'remsporen', 'Alweer! Zelfde wc als vorige keer.', 0.1, 'w', 'Begane grond'],
-    ['d2', 'remsporen', 'Na de vrijdagmiddagborrel...', 0.9, 'l', '2e verdieping'],
-    ['d2', 'plas', 'Mikken blijft lastig blijkbaar.', 0.7, 'l', 'Begane grond'],
-    ['d3', 'bril', 'Bril plakt.', 0.5, 'l', '1e verdieping'],
-    ['d2', 'wasbak', 'Koffieprut in de wasbak.', 0.3, 'l', '2e verdieping'],
-    ['d4', 'remsporen', '', 0.15, 'l', 'Begane grond'],
+    ['d1', 'remsporen', 'Klassieker. Iemand heeft de borstel niet gevonden.', 0.95, 'w', '5e verdieping · Heren'],
+    ['d3', 'plas', 'Plasje naast de pot, ik ben er bijna in uitgegleden 🫠', 0.8, 'w', '6e verdieping · Dames'],
+    ['d2', 'wasbak', 'Tandpasta + baardharen in de wasbak.', 0.6, 'w', '6e verdieping · Dames'],
+    ['d1', 'bril', 'Bril met verdachte druppels.', 0.4, 'w', '5e verdieping · Heren'],
+    ['d4', 'haar', 'Krulletje op de bril. Geen commentaar.', 0.25, 'w', 'Ander gebouw · Invalide'],
+    ['d1', 'remsporen', 'Alweer! Zelfde wc als vorige keer.', 0.1, 'w', '5e verdieping · Heren'],
+    ['d2', 'remsporen', 'Na de vrijdagmiddagborrel...', 0.9, 'l', 'Ander gebouw · Invalide'],
+    ['d2', 'plas', 'Mikken blijft lastig blijkbaar.', 0.7, 'l', '5e verdieping · Heren'],
+    ['d3', 'bril', 'Bril plakt.', 0.5, 'l', '6e verdieping · Dames'],
+    ['d2', 'wasbak', 'Koffieprut in de wasbak.', 0.3, 'l', 'Ander gebouw · Invalide'],
+    ['d4', 'remsporen', '', 0.15, 'l', '5e verdieping · Heren'],
   ];
   const posts = rows.map(([user_id, category, description, f, wk, location], i) => {
     const c = getCat(category);
@@ -294,6 +294,7 @@ function derive() {
   const { profiles, posts, confirmations } = state.data;
   const names = new Map(profiles.map((p) => [p.id, p.display_name]));
   const nameOf = (id) => names.get(id) || 'Onbekende spotter';
+  const isAdmin = !!profiles.find((p) => p.id === state.user?.id)?.is_admin;
 
   const confByPost = new Map();
   const confGiven = new Map();
@@ -328,7 +329,7 @@ function derive() {
     if (r.length) titles.set(c.id, r.filter((x) => x.rank === 1).map((x) => x.userId));
   }
 
-  return { nameOf, confByPost, confGiven, ws, inWeek, history, wins, titles };
+  return { nameOf, isAdmin, confByPost, confGiven, ws, inWeek, history, wins, titles };
 }
 
 function badgesFor(userId, d) {
@@ -415,7 +416,7 @@ function postCard(p, d) {
       <button class="btn ghost small ${iConf ? 'on' : ''}" data-action="confirm" data-id="${p.id}" ${mine ? 'disabled' : ''} aria-pressed="${iConf}">
         👀 Ik zag het ook${conf.size ? ` · ${conf.size}` : ''}
       </button>
-      ${mine ? `<button class="btn ghost small danger" data-action="delete" data-id="${p.id}">Verwijderen</button>` : ''}
+      ${mine || d.isAdmin ? `<button class="btn ghost small danger" data-action="delete" data-id="${p.id}">${mine ? 'Verwijderen' : '🛡️ Verwijderen'}</button>` : ''}
     </div>
   </article>`;
 }
@@ -583,7 +584,8 @@ function renderSheet() {
   const dr = state.draft;
   if (!dr) return;
   const descVal = $('#sheet textarea')?.value ?? '';
-  const locVal = $('#sheet select')?.value ?? '';
+  const locVal = $('#sheet select[name=location]')?.value ?? '';
+  const typeVal = $('#sheet select[name=wctype]')?.value ?? '';
   $('#sheet').innerHTML = `
   <div class="sheet-backdrop" data-action="close-sheet"></div>
   <form class="sheet" id="post-form" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
@@ -612,12 +614,20 @@ function renderSheet() {
       <p class="hint">Alleen de pot of wasbak, nooit personen 🙈</p>
     </fieldset>
 
-    ${CONFIG.LOCATIONS.length ? `
-    <label class="field">Welke wc?
-      <select name="location">
-        ${CONFIG.LOCATIONS.map((l) => `<option ${l === locVal ? 'selected' : ''}>${esc(l)}</option>`).join('')}
-      </select>
-    </label>` : ''}
+    <div class="field-row">
+      ${CONFIG.LOCATIONS.length ? `
+      <label class="field">Waar?
+        <select name="location">
+          ${CONFIG.LOCATIONS.map((l) => `<option ${l === locVal ? 'selected' : ''}>${esc(l)}</option>`).join('')}
+        </select>
+      </label>` : ''}
+      ${(CONFIG.WC_TYPES || []).length ? `
+      <label class="field">Welke wc?
+        <select name="wctype">
+          ${CONFIG.WC_TYPES.map((l) => `<option ${l === typeVal ? 'selected' : ''}>${esc(l)}</option>`).join('')}
+        </select>
+      </label>` : ''}
+    </div>
 
     <label class="field">Beschrijving
       <textarea name="description" maxlength="500" rows="2" placeholder="Vertel het verhaal…">${esc(descVal)}</textarea>
@@ -683,7 +693,8 @@ document.addEventListener('click', async (e) => {
     }
     case 'delete': {
       const p = findPost(); if (!p) break;
-      if (!confirm('Deze melding verwijderen? Je punt verdwijnt ook.')) break;
+      const own = p.user_id === state.user.id;
+      if (!confirm(own ? 'Deze melding verwijderen? Je punt verdwijnt ook.' : `Valse melding van ${derive().nameOf(p.user_id)} verwijderen? De punten vervallen.`)) break;
       try { await state.backend.deletePost(p); toast('Verwijderd'); } catch (err) { toast(niceError(err)); }
       refresh();
       break;
@@ -761,7 +772,7 @@ document.addEventListener('submit', async (e) => {
       userId: state.user.id,
       category: dr.category,
       description: String(fd.get('description') || '').trim().slice(0, 500),
-      location: fd.get('location') ? String(fd.get('location')) : null,
+      location: [fd.get('location'), fd.get('wctype')].filter(Boolean).map(String).join(' · ') || null,
       photo: dr.photo,
     };
     dr.busy = true;

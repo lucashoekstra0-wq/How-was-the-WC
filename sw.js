@@ -1,6 +1,6 @@
 // Service worker: laat de app installeren en snel openen.
 // Altijd eerst het netwerk (zodat je updates direct ziet), cache alleen als vangnet.
-const CACHE = 'howwasthewc-v1';
+const CACHE = 'howwasthewc-v2';
 const SHELL = [
   './', './index.html', './style.css', './app.js', './config.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png',

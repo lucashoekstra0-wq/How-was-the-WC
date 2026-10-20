@@ -24,5 +24,15 @@
   <div id="lightbox"></div>
   <div id="toast" role="status" aria-live="polite"></div>
   <script type="module" src="app.js"></script>
+  <script>
+    // Vangnet: als de app na 8 seconden nog niet gestart is, uitleg tonen.
+    setTimeout(function () {
+      var l = document.querySelector('#app > .loading');
+      if (!l) return;
+      l.innerHTML = location.protocol === 'file:'
+        ? 'De app werkt niet als je index.html dubbelklikt.<br>Open hem via je GitHub-link (https://…github.io/…).'
+        : 'De app start niet. Staan alle bestanden (ook app.js en config.js) los in de repository, niet in een submap?<br><br><button onclick="location.reload()">Opnieuw proberen</button>';
+    }, 8000);
+  </script>
 </body>
 </html>

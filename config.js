@@ -9,8 +9,11 @@ export const CONFIG = {
   SUPABASE_URL: "https://fxfqeqjgxdmwmakdjrbk.supabase.co",
   SUPABASE_ANON_KEY: "sb_publishable_YbS_jaavTHiPSuRkUowr0A_NwiOqBm9",
 
-  // Welke wc's zijn er? Leeg laten ([]) als je dit niet wilt vragen.
-  LOCATIONS: ["Begane grond", "1e verdieping", "2e verdieping"],
+  // Waar zijn de wc's? Leeg laten ([]) als je dit niet wilt vragen.
+  LOCATIONS: ["5e verdieping", "6e verdieping", "Ander gebouw"],
+
+  // Soort wc. Leeg laten ([]) als je dit niet wilt vragen.
+  WC_TYPES: ["Heren", "Dames", "Invalide"],
 
   // Moet er altijd een foto bij een melding?
   PHOTO_REQUIRED: true,
